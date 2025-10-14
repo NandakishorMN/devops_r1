@@ -7,7 +7,7 @@ from flask import Flask, render_template, request, jsonify
 app = Flask(__name__)
 
 # Define model paths
-MODEL_PATH = r'U:\DEVOPS\R1\rfmodel.joblib'
+MODEL_PATH = r'U:\DEVOPS\R1\rfmodel_compressed_max.joblib'
 FEATURE_PATH = r'U:\DEVOPS\R1\feature.joblib'
 
 # Helper function to load the model and features
