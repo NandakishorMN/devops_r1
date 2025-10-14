@@ -3,181 +3,325 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>💎 Gemstone Price Predictor</title>
+    <title>💎 Gemstone Price Predictor (Dark & Interactive)</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    
     <style>
-        /* Basic styling to mimic Streamlit's look and feel */
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
-            background-color: #f0f2f6; /* Streamlit's background color */
-            padding: 20px;
+        /* Custom styles for the Dark Theme */
+        :root {
+            --dark-bg: #121212; /* Darker background */
+            --card-bg: #1e1e1e; /* Slightly lighter for cards */
+            --primary-red: #FF4B4B; /* Red/Orange Accent Color (for button/highlights) */
+            --text-color: #e0e0e0; /* Light gray text */
         }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background-color: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+
+        body {
+            background-color: var(--dark-bg);
+            color: var(--text-color);
+        }
+        .app-container {
+            max-width: 900px;
+            margin-top: 50px;
+            padding: 40px;
+            border-radius: 12px;
+            background-color: var(--card-bg) !important; 
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
         }
         h1 {
+            color: var(--primary-red);
             text-align: center;
-            color: #FF4B4B; /* Streamlit's primary color */
-        }
-        .sidebar {
-            background-color: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
+            font-weight: 700;
             margin-bottom: 20px;
         }
-        .form-group {
-            margin-bottom: 15px;
+        .text-muted {
+            color: #b0b0b0 !important; 
         }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-        input[type="number"], select {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ced4da;
-            border-radius: 4px;
-            box-sizing: border-box; /* Include padding and border in the element's total width and height */
-        }
-        .btn-predict {
-            width: 100%;
-            color: #ffffff;
-            background-color: #FF4B4B;
+        .card-sidebar {
+            background-color: var(--card-bg); 
+            padding: 25px;
             border-radius: 8px;
-            padding: 10px 20px;
-            border: none;
-            font-size: 16px;
+            border: 1px solid #333; 
+            box-shadow: none;
+        }
+        /* Style adjustments for form elements in dark mode */
+        .form-control, .form-select {
+            background-color: #2c2c2c;
+            border-color: #555;
+            color: var(--text-color);
+        }
+        .form-control:focus, .form-select:focus {
+            background-color: #2c2c2c;
+            border-color: var(--primary-red);
+            box-shadow: 0 0 0 0.25rem rgba(255, 75, 75, 0.25);
+            color: var(--text-color);
+        }
+        /* Range slider track color for dark mode */
+        .form-range {
+            background-color: transparent;
+        }
+        .form-range::-webkit-slider-thumb {
+            background: var(--primary-red);
+        }
+        .form-range::-moz-range-thumb {
+            background: var(--primary-red);
+        }
+
+        .btn-predict {
+            background-color: var(--primary-red);
+            border-color: var(--primary-red);
             font-weight: bold;
-            box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
-            transition: 0.3s;
-            cursor: pointer;
-            margin-top: 10px;
+            color: #fff;
         }
         .btn-predict:hover {
             background-color: #e64545;
-            box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2);
+            border-color: #e64545;
         }
-        .result-box {
-            margin-top: 20px;
-            padding: 20px;
-            border: 1px solid #28a745;
-            border-radius: 8px;
-            background-color: #d4edda;
-            color: #155724;
+        
+        /* Prediction Result Area: Fixed Box Styling */
+        #predictionResult {
+            margin-top: 30px;
+            padding: 30px;
+            border-radius: 10px;
+            /* Default styles for fixed container */
+            border: 3px solid #333; 
+            background-color: #1e1e1e; 
+            color: var(--text-color);
             text-align: center;
+            font-size: 1.1rem;
+            transition: all 0.3s ease; /* Smooth transition for color changes */
         }
         .metric-value {
-            font-size: 2.5rem;
-            color: #28a745;
-            font-weight: bold;
+            font-size: 3.5rem;
+            /* Color is set via inline JS */
+            font-weight: 900;
+            margin: 15px 0;
         }
-        .error-message {
-            padding: 15px;
-            margin-bottom: 20px;
-            border: 1px solid #dc3545;
-            border-radius: 8px;
-            background-color: #f8d7da;
-            color: #721c24;
+        .info-text b {
+            font-weight: 800; 
+            /* Color is set via inline JS */
+        }
+        .text-white {
+             color: #fff !important;
+        }
+        .spinner-custom {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-left-color: var(--primary-red);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 10px auto;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
 
-<div class="container">
+<div class="container app-container text-white">
     <h1>💎 Gemstone Price Predictor</h1>
-    <p style="text-align: center;">Welcome! This app predicts the price of a cubic zirconia stone. Fill in the characteristics below and click 'Predict'.</p>
-    <hr>
+    <p class="text-center text-muted">A machine learning model for estimating cubic zirconia value.</p>
+    <hr style="border-color: #333;">
 
     {% if error_message %}
-        <div class="error-message">{{ error_message }}</div>
+        <div class="alert alert-danger" role="alert">{{ error_message }}</div>
     {% endif %}
 
-    <form action="/predict" method="POST" id="predictionForm">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card-sidebar">
+                <h2 class="h4 mb-4 text-white">Stone Characteristics</h2>
 
-        <div class="sidebar">
-            <h2>Stone Characteristics</h2>
+                <form id="predictionForm">
 
-            <div class="row" style="display: flex; gap: 20px;">
-                <div class="form-group" style="flex: 1;">
-                    <label for="cut">Cut Quality</label>
-                    <select name="cut" id="cut">
-                        {% for cut_opt in cut_options %}
-                            <option value="{{ cut_opt }}">{{ cut_opt }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 mb-3">
+                            <label for="cut" class="form-label">Cut Quality</label>
+                            <select name="cut" id="cut" class="form-select">
+                                {% for cut_opt in cut_options %}
+                                    <option value="{{ cut_opt }}">{{ cut_opt }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
 
-                <div class="form-group" style="flex: 1;">
-                    <label for="color">Color Grade</label>
-                    <select name="color" id="color">
-                        {% for key, value in color_options.items() %}
-                            <option value="{{ key }}">{{ value }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="color" class="form-label">Color Grade</label>
+                            <select name="color" id="color" class="form-select">
+                                {% for key, value in color_options.items() %}
+                                    <option value="{{ key }}">{{ value }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
 
-                <div class="form-group" style="flex: 1;">
-                    <label for="clarity">Clarity Grade</label>
-                    <select name="clarity" id="clarity">
-                        {% for key, value in clarity_options.items() %}
-                            <option value="{{ key }}">{{ value }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="clarity" class="form-label">Clarity Grade</label>
+                            <select name="clarity" id="clarity" class="form-select">
+                                {% for key, value in clarity_options.items() %}
+                                    <option value="{{ key }}">{{ value }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <h3 class="h5 mt-4 mb-3 text-white">Dimensions and Carat</h3>
+
+                    <div class="row g-3">
+                        
+                        <div class="col-md-4">
+                            <label for="carat" class="form-label">Carat (Weight)</label>
+                            <input type="range" class="form-range" min="0.2" max="5.0" step="0.01" id="carat_slider" value="1.0">
+                            <input type="number" step="0.01" min="0.2" max="5.0" id="carat_number" name="carat" value="1.0" class="form-control" required>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label for="depth" class="form-label">Depth (%)</label>
+                            <input type="range" class="form-range" min="40.0" max="80.0" step="0.1" id="depth_slider" value="60.0">
+                            <input type="number" step="0.1" min="40.0" max="80.0" id="depth_number" name="depth" value="60.0" class="form-control" required>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label for="table" class="form-label">Table (%)</label>
+                            <input type="range" class="form-range" min="40.0" max="80.0" step="0.1" id="table_slider" value="55.0">
+                            <input type="number" step="0.1" min="40.0" max="80.0" id="table_number" name="table" value="55.0" class="form-control" required>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="x" class="form-label">Length (x) mm</label>
+                            <input type="number" step="0.1" min="0.0" max="12.0" id="x" name="x" value="5.0" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="y" class="form-label">Width (y) mm</label>
+                            <input type="number" step="0.1" min="0.0" max="12.0" id="y" name="y" value="5.0" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="z" class="form-label">Depth (z) mm</label>
+                            <input type="number" step="0.1" min="0.0" max="8.0" id="z" name="z" value="3.0" class="form-control" required>
+                        </div>
+                    </div>
+
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-predict btn-lg">💎 Predict Price</button>
+                    </div>
+                </form>
             </div>
-
-            <hr>
-
-            <h3 style="margin-top: 20px;">Dimensions and Carat</h3>
-
-            <div class="row" style="display: flex; gap: 20px; flex-wrap: wrap;">
-                <div class="form-group" style="flex: 1 1 100%;"> <label for="carat">Carat (Weight of the stone)</label>
-                    <input type="number" step="0.01" min="0.2" max="5.0" id="carat" name="carat" value="1.0" required>
-                </div>
-
-                <div class="form-group" style="flex: 1 1 45%;">
-                    <label for="depth">Depth (%)</label>
-                    <input type="number" step="0.1" min="40.0" max="80.0" id="depth" name="depth" value="60.0" required>
-                </div>
-                <div class="form-group" style="flex: 1 1 45%;">
-                    <label for="table">Table (%)</label>
-                    <input type="number" step="0.1" min="40.0" max="80.0" id="table" name="table" value="55.0" required>
-                </div>
-
-                <div class="form-group" style="flex: 1 1 20%;">
-                    <label for="x">Length (x)</label>
-                    <input type="number" step="0.1" min="0.0" max="12.0" id="x" name="x" value="5.0" required>
-                </div>
-                <div class="form-group" style="flex: 1 1 20%;">
-                    <label for="y">Width (y)</label>
-                    <input type="number" step="0.1" min="0.0" max="12.0" id="y" name="y" value="5.0" required>
-                </div>
-                <div class="form-group" style="flex: 1 1 20%;">
-                    <label for="z">Depth (z)</label>
-                    <input type="number" step="0.1" min="0.0" max="8.0" id="z" name="z" value="3.0" required>
-                </div>
-
-            </div>
-
-            <button type="submit" class="btn-predict">💎 Predict Price</button>
         </div>
-    </form>
-
-    <p style="margin-top: 20px; text-align: center; color: #6c757d;">
-        *Note: After clicking 'Predict Price', your browser will show the JSON result from the prediction API.
-        A real-world application would use JavaScript to dynamically display the result here.*
-    </p>
-
-    <div style="text-align: center; margin-top: 30px;">
-        <p>Prediction logic moved to the Flask backend.</p>
+    </div>
+    
+    <div id="predictionResult" class="mt-4">
+        <div id="predictionContent">
+            <p class="text-center text-muted">Adjust the characteristics and click 'Predict Price' to see the result here.</p>
+        </div>
     </div>
 
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+
+<script>
+    // --- Synchronization Logic ---
+    function syncInputs(sliderId, numberId) {
+        const slider = document.getElementById(sliderId);
+        const number = document.getElementById(numberId);
+
+        // Slider changes Number
+        slider.addEventListener('input', function() {
+            number.value = slider.value;
+        });
+
+        // Number changes Slider
+        number.addEventListener('input', function() {
+            let val = parseFloat(number.value);
+            let min = parseFloat(slider.min);
+            let max = parseFloat(slider.max);
+
+            if (val >= min && val <= max) {
+                slider.value = number.value;
+            }
+        });
+    }
+
+    // Apply synchronization to the required fields
+    syncInputs('carat_slider', 'carat_number');
+    syncInputs('depth_slider', 'depth_number');
+    syncInputs('table_slider', 'table_number');
+
+
+    // --- Prediction Logic ---
+    document.getElementById('predictionForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const form = e.target;
+        const formData = new FormData(form);
+        const contentDiv = document.getElementById('predictionContent'); 
+        
+        // Define the colors
+        const attributeAccentColor = '#FF4B4B'; // Red/Orange for Cut, Color, Clarity
+        const priceColor = '#38D45F'; // The requested Green for the Price Metric
+        const successGreenBorder = '#38d45f'; // Bright Green Border
+        const successGreenBackground = '#0f3018'; // Dark Green Background
+
+        // 1. Show only the loading spinner inside the content area
+        contentDiv.innerHTML = `
+            <div class="text-center py-5">
+                <div class="spinner-custom"></div>
+                <p class="mt-3 text-muted">Calculating the price...</p>
+            </div>
+        `;
+
+        // 2. Apply dynamic GREEN styling to the outer box immediately
+        const resultDiv = document.getElementById('predictionResult');
+        resultDiv.style.borderColor = successGreenBorder;
+        resultDiv.style.backgroundColor = successGreenBackground;
+
+        // Send the request to the Flask API endpoint
+        fetch('/predict', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                // If error, inject error message
+                contentDiv.innerHTML = `<div class="alert alert-danger" role="alert">Error: ${data.error}</div>`;
+                // Revert outer box style for error
+                resultDiv.style.borderColor = '#dc3545'; // Error red border
+                resultDiv.style.backgroundColor = 'transparent'; // Transparent background for error
+            } else {
+                const predictedPrice = data.predicted_price;
+                const cut = formData.get('cut');
+                const color = formData.get('color');
+                const clarity = formData.get('clarity');
+                
+                // Determine the meaning of the result in gem terms
+                // Highlight cut, color, clarity with attributeAccentColor (RED/ORANGE)
+                let meaning = `Based on your selection, this stone is a <b style="color: ${attributeAccentColor};">${cut}</b> cut with a <b style="color: ${attributeAccentColor};">${color}</b> color grade and <b style="color: ${attributeAccentColor};">${clarity}</b> clarity grade.`;
+                
+                if (cut === 'Ideal' && color === 'D' && clarity === 'IF') {
+                    meaning += " This is a stone of the highest quality&mdash;a truly flawless combination!";
+                } else if (cut === 'Fair' || clarity === 'I1' || color === 'J') {
+                    meaning += " This combination represents a lower-end quality stone, as reflected in the estimated value.";
+                } else {
+                    meaning += " This is a solid, mid-range quality stone with desirable characteristics.";
+                }
+
+                // 3. Update only the INNER DIV content 
+                contentDiv.innerHTML = `
+                    <p class="h5 mb-2" style="color: ${attributeAccentColor};">Predicted Price</p>
+                    <div class="metric-value" style="color: ${priceColor};">${predictedPrice}</div>
+                    <p class="info-text">${meaning}</p>
+                    <p class="text-white mt-3 mb-0">Prediction complete! Try new values.</p>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Fetch error:', error);
+            contentDiv.innerHTML = `<div class="alert alert-danger" role="alert">A network error occurred: ${error.message}</div>`;
+            resultDiv.style.borderColor = '#dc3545';
+            resultDiv.style.backgroundColor = 'transparent';
+        });
+    });
+</script>
 
 </body>
 </html>
