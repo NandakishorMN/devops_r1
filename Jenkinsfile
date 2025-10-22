@@ -9,12 +9,11 @@ pipeline {
         K8S_PATH = 'k8s-manifests'
         AWS_REGION = 'ap-south-1'
         
-        // Credential IDs set up in the Jenkins Credentials Manager (Secret Text Kind)
-        // NOTE: These IDs MUST match the IDs you used when storing the keys in Jenkins.
-        AWS_SECRET_KEY_ID = 'aws-secret-key-id' 
-        AWS_ACCESS_KEY_ID = 'aws-access-key-id'
+        // Credential ID set up in the Jenkins Credentials Manager as 'Username with password'
+        // This ID MUST match the one you set in the Jenkins UI: nanda-dev-aws-up
+        AWS_UP_CRED_ID = 'nanda-dev-aws-up' 
 
-        // Dynamic tag generation
+        // Dynamic tag generation (Ensures a unique image for every build)
         IMAGE_TAG = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim() 
     }
 
@@ -22,7 +21,7 @@ pipeline {
         stage('Checkout Code') {
             steps {
                 echo "Cloning source code from repository..."
-                // Uses GitHub PAT credential set in the job configuration
+                // Uses the GitHub PAT credential set in the job SCM section
                 checkout scm 
             }
         }
@@ -30,12 +29,12 @@ pipeline {
         stage('Docker Build & Push to ECR') {
             steps {
                 script {
-                    // SECURE STEP: Binds the stored Secret Text values to environment variables.
+                    // *** GUARANTEED FIX: Binds the Username/Password credential to variables ***
                     withCredentials([
-                        // Binds the Secret Access Key
-                        secretText(credentialsId: AWS_SECRET_KEY_ID, variable: 'AWS_SECRET_ACCESS_KEY'),
-                        // Binds the Access Key ID
-                        secretText(credentialsId: AWS_ACCESS_KEY_ID, variable: 'AWS_ACCESS_KEY_ID')
+                        // Kind: Username with password (Username=Access Key, Password=Secret Key)
+                        usernamePassword(credentialsId: AWS_UP_CRED_ID, 
+                                         usernameVariable: 'AWS_ACCESS_KEY_ID', // Injected variable name for Access Key
+                                         passwordVariable: 'AWS_SECRET_ACCESS_KEY') // Injected variable name for Secret Key
                     ]) {
                         // 1. Authenticate Docker to ECR using the injected environment variables
                         sh 'aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_URI}'
@@ -58,6 +57,7 @@ pipeline {
                     sh "sed -i 's|image:.*|image: ${ECR_URI}:${IMAGE_TAG}|g' ${K8S_PATH}/deployment.yaml"
                     
                     // 2. Apply the updated deployment and service to the EKS cluster
+                    // Kubectl automatically uses the kubeconfig file we copied to the Jenkins home directory
                     sh "kubectl apply -f ${K8S_PATH}/deployment.yaml"
                     sh "kubectl apply -f ${K8S_PATH}/service.yaml"
                 }
@@ -66,7 +66,7 @@ pipeline {
         
         stage('Verify Rollout') {
             steps {
-                // Wait for Kubernetes to confirm the new Pods are running
+                // Wait for Kubernetes to confirm the new Pods are running and service is stable
                 sh 'kubectl rollout status deployment/ml-flask-deployment'
                 echo "Deployment successfully rolled out and updated on EKS."
             }
