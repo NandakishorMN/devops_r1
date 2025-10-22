@@ -14,9 +14,9 @@ module "eks_cluster" {
       max_size     = 3
       desired_size = 2
       instance_types = ["t3.medium"]
-      iam_role_additional_policies = [
-        "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-      ]
+      iam_role_additional_policies = {
+        ecr_read_access = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+      }
     }
   }
 }

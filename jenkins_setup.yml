@@ -1,0 +1,70 @@
+---
+- name: 1. Configure Jenkins CI/CD Environment (Install Tools)
+  hosts: jenkins_servers
+  become: true # Use sudo for installations
+
+  tasks:
+    - name: 1.1. Install Core Dependencies (Java 17, Docker, Python PIP)
+      ansible.builtin.apt:
+        name: "{{ item }}"
+        state: present
+        update_cache: yes
+      loop:
+        - openjdk-17-jdk  # Java is mandatory for Jenkins
+        - docker.io       # Container tooling for builds
+        - python3-pip     # Required for installing AWS CLI
+
+    - name: 1.2. Install Jenkins Repository Key and Source
+      ansible.builtin.shell: |
+        curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | gpg --dearmor -o /usr/share/keyrings/jenkins-keyring.gpg
+        echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.gpg] https://pkg.jenkins.io/debian-stable binary/" | tee /etc/apt/sources.list.d/jenkins.list > /dev/null
+      args:
+        warn: false
+
+    - name: 1.3. Install Jenkins and Upgrade System
+      ansible.builtin.apt:
+        name: jenkins
+        state: latest
+        update_cache: yes
+
+    - name: 1.4. Install AWS CLI (Crucial for ECR Login) and Kubectl (for EKS Deployment)
+      ansible.builtin.shell: |
+        pip install awscli
+        # Download and install kubectl
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+      args:
+        warn: false
+
+    - name: 1.5. Configure Permissions for Jenkins User
+      ansible.builtin.user:
+        name: jenkins
+        groups: docker
+        append: true
+      # Allows Jenkins to execute Docker commands (for image build/push)
+
+    - name: 1.6. Start and Enable Docker Service
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
+- name: 2. Copy Kubeconfig and Restart Jenkins
+  hosts: jenkins_servers
+  become: true
+  
+  tasks:
+    - name: 2.1. Copy EKS kubeconfig file (granting kubectl access)
+      ansible.builtin.copy:
+        # NOTE: Verify this source path is correct on your local machine!
+        src: C:/Users/nanda/.kube/config 
+        dest: /var/lib/jenkins/.kube/config
+        owner: jenkins
+        group: jenkins
+        mode: '0600'
+      # This step allows Jenkins to run "kubectl apply" commands against EKS.
+
+    - name: 2.2. Restart Jenkins to apply user/group changes and finalize setup
+      ansible.builtin.service:
+        name: jenkins
+        state: restarted

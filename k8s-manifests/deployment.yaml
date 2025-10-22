@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ml-flask-deployment
+  labels:
+    app: ml-flask
+spec:
+  replicas: 3 # Running 3 instances for high availability
+  selector:
+    matchLabels:
+      app: ml-flask
+  template:
+    metadata:
+      labels:
+        app: ml-flask
+    spec:
+      containers:
+      - name: ml-flask-container
+        # IMPORTANT: Use the full ECR path and the v1.0 tag
+        image: 639811820283.dkr.ecr.ap-south-1.amazonaws.com/flask-ml-repo:v1.0 
+        ports:
+        - containerPort: 5000 # Matches the EXPOSE port in your Dockerfile
