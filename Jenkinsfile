@@ -4,16 +4,17 @@
 pipeline {
     agent any 
     environment {
-        // Infrastructure Details (Pulled from your Terraform setup)
+        // Infrastructure Details (Confirmed ECR URI and Region)
         ECR_URI = '639811820283.dkr.ecr.ap-south-1.amazonaws.com/flask-ml-repo'
         K8S_PATH = 'k8s-manifests'
         AWS_REGION = 'ap-south-1'
         
-        // Credentials IDs set up in the Jenkins Credentials Manager (Secret Text Kind)
-        AWS_SECRET_KEY_ID = 'aws-secret-key-id'
+        // Credential IDs set up in the Jenkins Credentials Manager (Secret Text Kind)
+        // NOTE: These IDs MUST match the IDs you used when storing the keys in Jenkins.
+        AWS_SECRET_KEY_ID = 'aws-secret-key-id' 
         AWS_ACCESS_KEY_ID = 'aws-access-key-id'
 
-        // Dynamic tag based on Git Commit ID (Ensures unique image for every build)
+        // Dynamic tag generation
         IMAGE_TAG = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim() 
     }
 
@@ -21,7 +22,7 @@ pipeline {
         stage('Checkout Code') {
             steps {
                 echo "Cloning source code from repository..."
-                // Uses the GitHub PAT credential set in the SCM section of the Jenkins job config
+                // Uses GitHub PAT credential set in the job configuration
                 checkout scm 
             }
         }
@@ -29,28 +30,20 @@ pipeline {
         stage('Docker Build & Push to ECR') {
             steps {
                 script {
-                    // *** Securely retrieve both keys using the Secret Text Kind ***
+                    // SECURE STEP: Binds the stored Secret Text values to environment variables.
                     withCredentials([
-                        // Retrieve Secret Access Key
-                        [
-                            $class: 'SecretStringBinding', 
-                            credentialsId: AWS_SECRET_KEY_ID, 
-                            variable: 'AWS_SECRET_ACCESS_KEY' // Injects variable for the shell session
-                        ],
-                        // Retrieve Access Key ID
-                        [
-                            $class: 'SecretStringBinding', 
-                            credentialsId: AWS_ACCESS_KEY_ID, 
-                            variable: 'AWS_ACCESS_KEY_ID'
-                        ]
+                        // Binds the Secret Access Key
+                        secretText(credentialsId: AWS_SECRET_KEY_ID, variable: 'AWS_SECRET_ACCESS_KEY'),
+                        // Binds the Access Key ID
+                        secretText(credentialsId: AWS_ACCESS_KEY_ID, variable: 'AWS_ACCESS_KEY_ID')
                     ]) {
-                        // Login to ECR: AWS CLI uses the injected environment variables automatically
+                        // 1. Authenticate Docker to ECR using the injected environment variables
                         sh 'aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_URI}'
                         
-                        // Build the new Docker image
+                        // 2. Build the new Docker image
                         sh "docker build -t ${ECR_URI}:${IMAGE_TAG} -f Dockerfile ."
                         
-                        // Push the image to AWS ECR
+                        // 3. Push the image to AWS ECR
                         sh "docker push ${ECR_URI}:${IMAGE_TAG}"
                         echo "Image pushed: ${ECR_URI}:${IMAGE_TAG}"
                     }
@@ -61,13 +54,11 @@ pipeline {
         stage('Deploy to EKS') {
             steps {
                 script {
-                    // Update the deployment manifest with the new unique image tag
+                    // 1. Update the deployment manifest with the new unique image tag
                     sh "sed -i 's|image:.*|image: ${ECR_URI}:${IMAGE_TAG}|g' ${K8S_PATH}/deployment.yaml"
                     
-                    // Apply the updated deployment to the EKS cluster
+                    // 2. Apply the updated deployment and service to the EKS cluster
                     sh "kubectl apply -f ${K8S_PATH}/deployment.yaml"
-                    
-                    // Apply the service (to maintain the NLB configuration)
                     sh "kubectl apply -f ${K8S_PATH}/service.yaml"
                 }
             }
@@ -75,8 +66,9 @@ pipeline {
         
         stage('Verify Rollout') {
             steps {
-                // Wait for Kubernetes to confirm the new Pods are running before finishing the job
+                // Wait for Kubernetes to confirm the new Pods are running
                 sh 'kubectl rollout status deployment/ml-flask-deployment'
+                echo "Deployment successfully rolled out and updated on EKS."
             }
         }
     }
