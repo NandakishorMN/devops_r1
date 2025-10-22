@@ -1,0 +1,23 @@
+# k8s-manifests/servicemonitor.yaml
+
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ml-flask-app-monitor
+  namespace: default # Your application is in the 'default' namespace
+  labels:
+    # CRITICAL: This label tells Prometheus to find and process this ServiceMonitor.
+    # It must match the release name of the Prometheus stack (prometheus-stack)
+    release: prometheus-stack 
+spec:
+  selector:
+    matchLabels:
+      app: ml-flask # Targets the pods labeled 'app: ml-flask' from your deployment
+  endpoints:
+    - port: http # The name of the port in your Kubernetes Service (default is often 'http')
+      path: /metrics # The endpoint where your Flask app exposes Prometheus metrics
+      interval: 15s
+  # Tells Prometheus to look for targets in the 'default' namespace
+  namespaceSelector:
+    matchNames:
+      - default

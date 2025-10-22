@@ -4,12 +4,14 @@ metadata:
   name: ml-flask-service
   annotations:
     # Requests an AWS Network Load Balancer (NLB)
-    service.beta.kubernetes.io/aws-load-balancer-type: "nlb" 
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+  labels:                  
+    app: ml-flask          # <--- CRITICAL FIX: This label allows the ServiceMonitor to find the Service.
 spec:
   selector:
-    app: ml-flask # Targets the pods created by the deployment above
+    app: ml-flask          # Selects Pods with the label app: ml-flask
   ports:
     - protocol: TCP
-      port: 80      # The public port for the LoadBalancer
-      targetPort: 8080 # The container port (Flask)
-  type: LoadBalancer # Tells AWS to provision a load balancer
+      port: 80             # The public access port on the Load Balancer
+      targetPort: 8080     # The container port (where Gunicorn is listening)
+  type: LoadBalancer       # Tells Kubernetes to provision an external AWS Load Balancer
