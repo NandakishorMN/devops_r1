@@ -6,9 +6,10 @@ from flask import Flask, render_template, request, jsonify
 # --- Configuration & Initialization ---
 app = Flask(__name__)
 
-# Define model paths
-MODEL_PATH = r'U:\DEVOPS\R1\rfmodel_compressed_max.joblib'
-FEATURE_PATH = r'U:\DEVOPS\R1\feature.joblib'
+# Define model paths RELATIVE to the container's working directory (/app)
+# These paths assume you copied the files into the /app folder in your Dockerfile.
+MODEL_PATH = 'rfmodel_compressed_max.joblib'
+FEATURE_PATH = 'feature.joblib'
 
 # Helper function to load the model and features
 def load_model_and_features():
@@ -18,7 +19,8 @@ def load_model_and_features():
         feature_names = joblib.load(FEATURE_PATH)
         return model, feature_names
     except FileNotFoundError as e:
-        print(f"Error: Model file not found. Please ensure {MODEL_PATH} and {FEATURE_PATH} are in the root directory.")
+        # Log a warning if the files aren't found in the container
+        print(f"Error: Model file not found. Please ensure {MODEL_PATH} and {FEATURE_PATH} are copied to /app.")
         print(f"Details: {e}")
         return None, None
 
@@ -27,11 +29,9 @@ MODEL, FEATURE_NAMES = load_model_and_features()
 
 # Check if model loaded successfully
 if MODEL is None or FEATURE_NAMES is None:
-    # If the model didn't load, the app will still run, but the /predict endpoint will error
-    # You might want to raise an error or halt the execution here in a production environment
-    print("WARNING: Model or features failed to load. Check file paths.")
+    print("WARNING: Model or features failed to load. The API will not function correctly.")
 
-# Mapping for Select Box options (Copied from Streamlit code)
+# Mapping for Select Box options (Used for internal preprocessing)
 CUT_OPTIONS = ['Ideal', 'Premium', 'Very Good', 'Good', 'Fair']
 
 COLOR_OPTIONS = {
@@ -61,28 +61,41 @@ CLARITY_OPTIONS = {
 def index():
     """Renders the main input form and handles initial page load."""
     if MODEL is None:
-        # Pass an error message to the template if the model is missing
-        error_message = "🚨 Model files not found! Please check 'rfmodel.joblib' and 'feature.joblib'."
+        error_message = "🚨 Model files not found! Prediction API is disabled."
     else:
         error_message = None
 
+    # This route assumes you have an index.html file in a 'templates' folder
     return render_template('index.html',
-                           cut_options=CUT_OPTIONS,
-                           color_options=COLOR_OPTIONS,
-                           clarity_options=CLARITY_OPTIONS,
-                           error_message=error_message)
+                            cut_options=CUT_OPTIONS,
+                            color_options=COLOR_OPTIONS,
+                            clarity_options=CLARITY_OPTIONS,
+                            error_message=error_message)
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    """Receives form data, preprocesses it, and returns the prediction."""
+    """
+    API endpoint: Receives data, preprocesses it, and returns the prediction.
+    It is now robust against incorrect Content-Type headers from the client.
+    """
     if MODEL is None:
         return jsonify({'error': 'Model not loaded on the server.'}), 500
 
     try:
-        # 1. Get data from the POST request (form submission)
-        data = request.form
+        # 1. Get data from the POST request (Robustly handling JSON or form data)
+        # Try to get JSON first. 'silent=True' prevents the 415 error if Content-Type is missing/wrong.
+        data = request.get_json(silent=True) 
+        
+        if data is None:
+             # If JSON parsing failed or was skipped, try standard form data
+             data = request.form
+
+        if not data:
+             # If no data found at all
+             raise ValueError("No input data provided in the request body.")
 
         # Extract numerical features and convert to float
+        # We use .get() for safe dictionary access, providing a default 0.0 value
         carat = float(data.get('carat', 0.0))
         depth = float(data.get('depth', 0.0))
         table = float(data.get('table', 0.0))
@@ -119,15 +132,18 @@ def predict():
         prediction = MODEL.predict(input_df)[0]
         
         # 4. Return result as a JSON response
-        # Flask is generally used for REST APIs, so returning JSON is standard
-        return jsonify({'predicted_price': f"${prediction:,.2f}"})
+        return jsonify({
+            'predicted_price': f"${prediction:,.2f}",
+            'raw_price': prediction 
+        })
 
     except Exception as e:
-        # Handle potential errors during conversion or prediction
+        # Handle potential errors during conversion, prediction, or data extraction
         print(f"Prediction Error: {e}")
+        # Return a 400 Bad Request for client-side input errors
         return jsonify({'error': f'An error occurred during prediction: {str(e)}'}), 400
 
 # --- Running the App ---
 if __name__ == '__main__':
-    # When running locally, Flask runs on port 5000 by default
+    # This runs the development server locally, not used in the Docker/Gunicorn environment
     app.run(debug=True)
