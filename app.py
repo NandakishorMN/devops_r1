@@ -1,7 +1,8 @@
 import os
 import joblib
 import pandas as pd
-from flask import Flask, render_template, request, jsonify
+# *** FIX: Import Response explicitly from flask ***
+from flask import Flask, render_template, request, jsonify, Response 
 
 # *** MLOPS INSTRUMENTATION ***
 # Import Prometheus client library
@@ -105,7 +106,6 @@ def predict():
     
     try:
         # 1. Get data from the POST request (Robustly handling JSON or form data)
-        # ... (Data extraction logic remains the same) ...
         data = request.get_json(silent=True) or request.form
 
         if not data:
